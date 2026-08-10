@@ -1,0 +1,8 @@
+{
+  "uuid": "clausage@pedroelizalde01.github.com",
+  "name": "Clausage",
+  "description": "Show Claude Code's five-hour and weekly usage in the GNOME top bar.",
+  "shell-version": ["42"],
+  "url": "https://github.com/PedroElizalde01/clausage",
+  "version": 1
+}

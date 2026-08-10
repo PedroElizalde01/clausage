@@ -1,0 +1,21 @@
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - run: node --check extension.js
+      - run: python3 -m unittest -v
+      - run: python3 usage.py --self-check
+      - run: zip -j clausage@pedroelizalde01.github.com.shell-extension.zip extension.js usage.py metadata.json

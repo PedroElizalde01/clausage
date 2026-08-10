@@ -1,0 +1,20 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest -v
+      - run: node --check extension.js
+      - run: zip -j clausage@pedroelizalde01.github.com.shell-extension.zip extension.js usage.py metadata.json
+      - run: gh release create "$GITHUB_REF_NAME" clausage@pedroelizalde01.github.com.shell-extension.zip --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
