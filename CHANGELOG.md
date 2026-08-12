@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 — 2026-08-10
+
+- Keep the usage menu open when refreshing.
+
 ## 1.0.0 — 2026-08-10
 
 - Show five-hour usage permanently in the GNOME top bar.

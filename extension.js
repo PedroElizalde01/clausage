@@ -46,7 +46,9 @@ class ClausageIndicator extends PanelMenu.Button {
         this._usage.label.style = 'font-family: monospace;';
         this.menu.addMenuItem(this._usage);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addAction('Refresh now', () => this._refresh());
+        this._refreshItem = new PopupMenu.PopupMenuItem('Refresh now');
+        this._refreshItem.activate = () => this._refresh();
+        this.menu.addMenuItem(this._refreshItem);
 
         this._refresh();
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
