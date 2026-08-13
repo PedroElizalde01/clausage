@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 — 2026-08-10
+
+- Replace compact ASCII meters with labeled 20-column block progress bars.
+
 ## 1.0.1 — 2026-08-10
 
 - Keep the usage menu open when refreshing.

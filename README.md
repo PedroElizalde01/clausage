@@ -9,11 +9,11 @@ Unofficial project. Not affiliated with or endorsed by Anthropic.
 ## Preview
 
     CLAUDE / USAGE
-    -----------------------
-    5H     [####------]  42%
-    RESET   02h 18m
-    7D     [###-------]  31%
-    -----------------------
+    --------------------------
+    5H: [████████░░░░░░░░░42%]
+    Resets in: 02h 18m
+    7D: [██████░░░░░░░░░░░31%]
+    --------------------------
     STATUS  LIVE
 
 The ring and percentage use green below 50%, yellow from 50% through 85%, and red above 85%.
@@ -56,7 +56,7 @@ The usage endpoint and Claude Code credential format are not public stable APIs 
 
 ## Development
 
-Run checks with `node --check extension.js`, `python3 -m unittest -v`, and `python3 usage.py --self-check`.
+Run checks with `node --check extension.js`, `node test_extension.js`, `python3 -m unittest -v`, and `python3 usage.py --self-check`.
 
 Build the release bundle with `zip -j clausage@pedroelizalde01.github.com.shell-extension.zip extension.js usage.py metadata.json`.
 

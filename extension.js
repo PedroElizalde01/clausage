@@ -20,8 +20,10 @@ function ringColor(used, severity) {
 }
 
 function usageBar(used) {
-    let filled = Math.round(percent(used) / 10);
-    return `${'#'.repeat(filled)}${'-'.repeat(10 - filled)}`;
+    let value = `${percent(used)}%`;
+    let slots = 20 - value.length;
+    let filled = Math.min(slots, Math.round(percent(used) / 5));
+    return `${'█'.repeat(filled)}${'░'.repeat(slots - filled)}${value}`;
 }
 
 const ClausageIndicator = GObject.registerClass(
@@ -42,7 +44,7 @@ class ClausageIndicator extends PanelMenu.Button {
         this._box.add_child(this._label);
         this.add_child(this._box);
 
-        this._usage = new PopupMenu.PopupMenuItem('CLAUDE / USAGE\n-----------------------\nSTATUS  LOADING', { reactive: false });
+        this._usage = new PopupMenu.PopupMenuItem('CLAUDE / USAGE\n--------------------------\nSTATUS  LOADING', { reactive: false });
         this._usage.label.style = 'font-family: monospace;';
         this.menu.addMenuItem(this._usage);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -103,7 +105,7 @@ class ClausageIndicator extends PanelMenu.Button {
     _showError() {
         this._percent = 0;
         this._label.text = '!';
-        this._usage.label.text = 'CLAUDE / USAGE\n-----------------------\nSTATUS  ERROR\nACTION  Refresh now';
+        this._usage.label.text = 'CLAUDE / USAGE\n--------------------------\nSTATUS  ERROR\nACTION  Refresh now';
         this._ring.queue_repaint();
     }
 
@@ -118,11 +120,11 @@ class ClausageIndicator extends PanelMenu.Button {
         this._label.text = available ? `${session}%` : '—';
         this._usage.label.text = [
             'CLAUDE / USAGE',
-            '-----------------------',
-            available ? `5H     [${usageBar(session)}] ${String(session).padStart(3, ' ')}%` : '5H     [??????????]  --%',
-            `RESET   ${available ? data.session?.remaining ?? '--' : '--'}`,
-            available ? `7D     [${usageBar(weekly)}] ${String(weekly).padStart(3, ' ')}%` : '7D     [??????????]  --%',
-            '-----------------------',
+            '--------------------------',
+            available ? `5H: [${usageBar(session)}]` : `5H: [${'░'.repeat(17)}--%]`,
+            `Resets in: ${available ? data.session?.remaining ?? '--' : '--'}`,
+            available ? `7D: [${usageBar(weekly)}]` : `7D: [${'░'.repeat(17)}--%]`,
+            '--------------------------',
             `STATUS  ${status}`,
         ].join('\n');
         this._ring.queue_repaint();
