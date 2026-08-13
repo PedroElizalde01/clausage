@@ -20,8 +20,8 @@ function ringColor(used, severity) {
 }
 
 function usageBar(used) {
-    let value = `${percent(used)}%`;
-    let slots = 20 - value.length;
+    let value = ` ${percent(used)}%`;
+    let slots = 21 - value.length;
     let filled = Math.min(slots, Math.round(percent(used) / 5));
     return `${'█'.repeat(filled)}${'░'.repeat(slots - filled)}${value}`;
 }
@@ -121,9 +121,9 @@ class ClausageIndicator extends PanelMenu.Button {
         this._usage.label.text = [
             'CLAUDE / USAGE',
             '--------------------------',
-            available ? `5H: [${usageBar(session)}]` : `5H: [${'░'.repeat(17)}--%]`,
+            available ? `5H: [${usageBar(session)}]` : `5H: [${'░'.repeat(17)} --%]`,
             `Resets in: ${available ? data.session?.remaining ?? '--' : '--'}`,
-            available ? `7D: [${usageBar(weekly)}]` : `7D: [${'░'.repeat(17)}--%]`,
+            available ? `7D: [${usageBar(weekly)}]` : `7D: [${'░'.repeat(17)} --%]`,
             '--------------------------',
             `STATUS  ${status}`,
         ].join('\n');

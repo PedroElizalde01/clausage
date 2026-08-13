@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 — 2026-08-10
+
+- Add spacing between each progress meter and its percentage.
+
 ## 1.0.2 — 2026-08-10
 
 - Replace compact ASCII meters with labeled 20-column block progress bars.

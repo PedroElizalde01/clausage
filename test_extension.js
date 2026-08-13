@@ -7,7 +7,7 @@ const barSource = source.match(/function usageBar\(used\) \{[\s\S]*?\n\}/)?.[0];
 assert.ok(percentSource && barSource);
 eval(`${percentSource}\n${barSource}\nglobalThis.usageBar = usageBar;`);
 
-assert.equal(usageBar(50), '██████████░░░░░░░50%');
-assert.equal(usageBar(0), `${'░'.repeat(18)}0%`);
-assert.equal(usageBar(100), '████████████████100%');
+assert.equal(usageBar(50), '██████████░░░░░░░ 50%');
+assert.equal(usageBar(0), `${'░'.repeat(18)} 0%`);
+assert.equal(usageBar(100), '████████████████ 100%');
 console.log('progress bars: ok');

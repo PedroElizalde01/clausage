@@ -22,9 +22,9 @@
   <g fill="#e8e5ed" font-family="DejaVu Sans Mono, monospace" font-size="17">
     <text x="304" y="108" fill="#a9a5b0" font-size="15" letter-spacing="2">CLAUDE / USAGE</text>
     <text x="304" y="143" fill="#5f5c67">--------------------------</text>
-    <text x="304" y="185">5H: [<tspan fill="#4bd18b">██████████</tspan><tspan fill="#686570">░░░░░░░</tspan>50%]</text>
+    <text x="304" y="185">5H: [<tspan fill="#4bd18b">██████████</tspan><tspan fill="#686570">░░░░░░░</tspan> 50%]</text>
     <text x="304" y="225" fill="#a9a5b0">Resets in: <tspan fill="#e8e5ed">02h 18m</tspan></text>
-    <text x="304" y="265">7D: [<tspan fill="#4bd18b">██████</tspan><tspan fill="#686570">░░░░░░░░░░░</tspan>31%]</text>
+    <text x="304" y="265">7D: [<tspan fill="#4bd18b">██████</tspan><tspan fill="#686570">░░░░░░░░░░░</tspan> 31%]</text>
     <text x="304" y="302" fill="#5f5c67">--------------------------</text>
     <text x="304" y="342" fill="#a9a5b0">STATUS  <tspan fill="#4bd18b">LIVE</tspan></text>
   </g>

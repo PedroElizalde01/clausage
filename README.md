@@ -10,9 +10,9 @@ Unofficial project. Not affiliated with or endorsed by Anthropic.
 
     CLAUDE / USAGE
     --------------------------
-    5H: [████████░░░░░░░░░42%]
+    5H: [████████░░░░░░░░░ 42%]
     Resets in: 02h 18m
-    7D: [██████░░░░░░░░░░░31%]
+    7D: [██████░░░░░░░░░░░ 31%]
     --------------------------
     STATUS  LIVE
 
