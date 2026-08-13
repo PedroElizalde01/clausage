@@ -16,6 +16,8 @@ Unofficial project. Not affiliated with or endorsed by Anthropic.
     --------------------------
     STATUS  LIVE
 
+    [ REFRESH NOW ]
+
 The ring and percentage use green below 50%, yellow from 50% through 85%, and red above 85%.
 
 ## Requirements

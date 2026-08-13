@@ -48,7 +48,8 @@ class ClausageIndicator extends PanelMenu.Button {
         this._usage.label.style = 'font-family: monospace;';
         this.menu.addMenuItem(this._usage);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this._refreshItem = new PopupMenu.PopupMenuItem('Refresh now');
+        this._refreshItem = new PopupMenu.PopupMenuItem('[ REFRESH NOW ]');
+        this._refreshItem.label.style = 'font-family: monospace;';
         this._refreshItem.activate = () => this._refresh();
         this.menu.addMenuItem(this._refreshItem);
 
@@ -80,6 +81,7 @@ class ClausageIndicator extends PanelMenu.Button {
     _refresh() {
         if (this._refreshing || this._destroyed) return;
         this._refreshing = true;
+        this._refreshItem.label.text = '[ REFRESHING… ]';
 
         try {
             this._process = new Gio.Subprocess({ argv: ['python3', SCRIPT], flags: Gio.SubprocessFlags.STDOUT_PIPE });
@@ -88,6 +90,7 @@ class ClausageIndicator extends PanelMenu.Button {
                 this._refreshing = false;
                 this._process = null;
                 if (this._destroyed) return;
+                this._refreshItem.label.text = '[ REFRESH NOW ]';
                 try {
                     let [, output] = process.communicate_utf8_finish(result);
                     this._render(JSON.parse(output || '{}'));
@@ -98,6 +101,7 @@ class ClausageIndicator extends PanelMenu.Button {
         } catch (error) {
             this._refreshing = false;
             this._process = null;
+            this._refreshItem.label.text = '[ REFRESH NOW ]';
             this._showError();
         }
     }

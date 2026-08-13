@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4 — 2026-08-10
+
+- Match the refresh action to the console UI and show its running state.
+
 ## 1.0.3 — 2026-08-10
 
 - Add spacing between each progress meter and its percentage.

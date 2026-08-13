@@ -27,5 +27,6 @@
     <text x="304" y="265">7D: [<tspan fill="#4bd18b">██████</tspan><tspan fill="#686570">░░░░░░░░░░░</tspan> 31%]</text>
     <text x="304" y="302" fill="#5f5c67">--------------------------</text>
     <text x="304" y="342" fill="#a9a5b0">STATUS  <tspan fill="#4bd18b">LIVE</tspan></text>
+    <text x="304" y="372" fill="#e8e5ed">[ REFRESH NOW ]</text>
   </g>
 </svg>
