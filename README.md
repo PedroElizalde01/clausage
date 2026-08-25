@@ -22,6 +22,12 @@ The ring and percentage use green below 50%, yellow from 50% through 85%, and re
 
 ## Requirements
 
+### Windows 10
+- Python 3.9 or newer (with `pip` available in PATH)
+- Claude Code installed and signed in
+- Internet access to Anthropic's usage endpoint
+
+### Linux (GNOME)
 - GNOME Shell 42
 - Python 3
 - Claude Code installed and signed in
@@ -29,14 +35,40 @@ The ring and percentage use green below 50%, yellow from 50% through 85%, and re
 
 Only GNOME Shell 42 is declared because it is the version currently tested. GNOME 45 and newer require a separate ES-module port.
 
-## Install a release
+## Windows install
+
+1. Clone or download this repository.
+2. Run `install_windows.bat` (double-click or run from a terminal).
+   - Installs `pystray` and `Pillow` via pip.
+   - Writes a launcher to your Startup folder so Clausage starts automatically on login.
+3. The tray icon appears in the notification area (bottom-right, near the clock). Click `^` to expand hidden tray icons if needed.
+
+To start Clausage immediately without logging out, run:
+
+```
+pythonw tray.py
+```
+
+To remove Clausage from startup, run `uninstall_windows.bat`, then quit the running instance via its tray panel.
+
+### Windows usage
+
+- **Left-click** the ring icon to open the usage panel.
+- The panel shows 5-hour usage, reset countdown, weekly usage, and live/cache status.
+- Click **Refresh Now** inside the panel to fetch fresh data; the panel stays open while refreshing.
+- Click anywhere outside the panel to dismiss it.
+- **Right-click** the icon for a minimal menu with a Quit option.
+
+## Linux install (GNOME)
+
+### Install a release
 
 1. Download `clausage@pedroelizalde01.github.com.shell-extension.zip` from GitHub Releases.
 2. Run `gnome-extensions install --force clausage@pedroelizalde01.github.com.shell-extension.zip`.
 3. Reload GNOME Shell: on X11 press `Alt+F2`, type `r`, and press Enter; on Wayland sign out and back in.
 4. Run `gnome-extensions enable clausage@pedroelizalde01.github.com`.
 
-## Install from source
+### Install from source
 
 Run `./install.sh`, reload GNOME Shell as described above, then enable the extension with `gnome-extensions enable clausage@pedroelizalde01.github.com`.
 
