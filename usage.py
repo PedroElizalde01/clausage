@@ -11,7 +11,11 @@ from urllib.request import Request, urlopen
 
 HOME = os.path.expanduser("~")
 CREDENTIALS = os.path.join(HOME, ".claude", ".credentials.json")
-CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache")), "clausage", "usage.json")
+if sys.platform == "win32":
+    _cache_root = os.environ.get("LOCALAPPDATA") or os.path.join(HOME, "AppData", "Local")
+else:
+    _cache_root = os.environ.get("XDG_CACHE_HOME") or os.path.join(HOME, ".cache")
+CACHE = os.path.join(_cache_root, "clausage", "usage.json")
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 
 
@@ -57,7 +61,8 @@ def save(data):
         directory = os.path.dirname(CACHE)
         os.makedirs(directory, mode=0o700, exist_ok=True)
         fd, temporary = tempfile.mkstemp(dir=directory)
-        os.fchmod(fd, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(fd, 0o600)
         with os.fdopen(fd, "w") as file:
             json.dump(data, file)
         os.replace(temporary, CACHE)
