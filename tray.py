@@ -8,8 +8,9 @@ import time
 from urllib.error import HTTPError, URLError
 
 # Single-instance guard: exit silently if already running.
-_MUTEX = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\ClausageTray_PedroElizalde01")
-if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+_KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
+_MUTEX = _KERNEL32.CreateMutexW(None, False, "Local\\ClausageTray_PedroElizalde01")
+if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
     sys.exit(0)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,11 +26,22 @@ except ImportError as _err:
 import tkinter as tk
 import usage as _u
 
-POLL_INTERVAL = 60
+# The usage endpoint rate limits aggressive callers, and a 5h/7d window does not move
+# fast enough to justify polling every minute. On failure the poll loop backs off
+# exponentially up to POLL_MAX_INTERVAL so a transient 429 cannot become permanent.
+POLL_INTERVAL = 300
+POLL_MAX_INTERVAL = 3600
+
+REASON_LABEL = {
+    "auth": "AUTH EXPIRED",
+    "network": "OFFLINE",
+    "rate": "RATE LIMITED",
+    "api": "API ERROR",
+}
 
 _refresh_lock = threading.Lock()
 _state = dict(
-    available=False, session_pct=0, weekly_pct=0,
+    session_pct=None, weekly_pct=None,
     remaining="--", status="LOADING", severity="normal",
 )
 _panel_ref = [None]  # current popup panel, if open
@@ -39,6 +51,9 @@ _panel_ref = [None]  # current popup panel, if open
 # Icon drawing
 # ---------------------------------------------------------------------------
 
+STALE_RING = (150, 150, 150, 255)
+
+
 def _ring_color(pct, severity):
     if severity in ("error", "critical") or pct > 85:
         return (240, 69, 69, 255)
@@ -47,7 +62,7 @@ def _ring_color(pct, severity):
     return (54, 199, 120, 255)
 
 
-def _make_icon(pct=0, severity="normal"):
+def _make_icon(pct=0, severity="normal", fresh=True):
     size = 64
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -57,7 +72,8 @@ def _make_icon(pct=0, severity="normal"):
     if pct > 0:
         draw.arc([cx - r, cy - r, cx + r, cy + r],
                  start=-90, end=-90 + 360 * pct / 100,
-                 fill=_ring_color(pct, severity), width=lw)
+                 fill=_ring_color(pct, severity) if fresh else STALE_RING,
+                 width=lw)
     return img
 
 
@@ -66,9 +82,10 @@ def _make_icon(pct=0, severity="normal"):
 # ---------------------------------------------------------------------------
 
 def _bar(pct):
-    label = f" {pct}%"
+    """Block bar for a percentage; pct=None renders an empty "unknown" bar."""
+    label = " --%" if pct is None else f" {pct}%"
     slots = 21 - len(label)
-    filled = min(slots, round(pct / 5))
+    filled = 0 if pct is None else min(slots, round(pct / 5))
     return f"[{'█' * filled}{'░' * (slots - filled)}{label}]"
 
 
@@ -76,37 +93,46 @@ def _bar(pct):
 # Data fetching
 # ---------------------------------------------------------------------------
 
+def _degraded(reason, retry_after=None):
+    """Fall back to the cache, tagged with why live data is unavailable."""
+    data = _u.load_cache()
+    if data:
+        data.update(state="stale", fresh=False, reason=reason)
+        data = _u.normalize(data)
+    else:
+        data = dict(state=reason, fresh=False, reason=reason)
+    if retry_after:
+        data["retry_after"] = retry_after
+    return data
+
+
+def _retry_after(exc):
+    try:
+        return max(0, int(exc.headers.get("retry-after")))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
 def _fetch():
     token = _u.load_token()
     if not token:
-        cached = _u.load_cache()
-        if cached:
-            cached.update(state="stale", fresh=False, reason="auth")
-            return _u.normalize(cached)
-        return dict(state="auth", fresh=False, reason="auth")
+        return _degraded("auth")
 
     try:
         raw = _u.fetch_usage(token)
     except HTTPError as exc:
-        reason = "auth" if exc.code in (401, 403) else "network"
-        cached = _u.load_cache()
-        if cached:
-            cached.update(state="stale", fresh=False, reason=reason)
-            return _u.normalize(cached)
-        return dict(state=reason, fresh=False, reason=reason)
+        if exc.code in (401, 403):
+            return _degraded("auth")
+        if exc.code == 429:
+            return _degraded("rate", _retry_after(exc))
+        return _degraded("api")
     except (URLError, TimeoutError, OSError):
-        cached = _u.load_cache()
-        if cached:
-            cached.update(state="stale", fresh=False, reason="network")
-            return _u.normalize(cached)
-        return dict(state="network", fresh=False, reason="network")
+        return _degraded("network")
+    except (UnicodeDecodeError, ValueError):  # includes JSONDecodeError
+        return _degraded("api")
 
     if not isinstance(raw, dict) or raw.get("error"):
-        cached = _u.load_cache()
-        if cached:
-            cached.update(state="stale", fresh=False, reason="api")
-            return _u.normalize(cached)
-        return dict(state="api", fresh=False)
+        return _degraded("api")
 
     raw.update(state="ok", fresh=True, fetched_at=int(time.time()))
     raw = _u.normalize(raw)
@@ -114,43 +140,92 @@ def _fetch():
     return raw
 
 
+def _reason_label(reason):
+    return REASON_LABEL.get(reason, (reason or "ERROR").upper())
+
+
+def _age(fetched_at):
+    """Human-readable age of a cached reading, e.g. "3h old"."""
+    try:
+        seconds = max(0, int(time.time() - fetched_at))
+    except (TypeError, ValueError):
+        return "?"
+    if seconds < 3600:
+        return f"{seconds // 60}m old"
+    if seconds < 86400:
+        return f"{seconds // 3600}h old"
+    return f"{seconds // 86400}d old"
+
+
+def _reading(window, available, fresh):
+    """A window's percentage, or None when we cannot vouch for it.
+
+    A cached reading is void once its window has reset: usage returns to zero at
+    rollover, so the stored number is known to be wrong rather than merely old.
+    """
+    if not available or (not fresh and window.get("expired")):
+        return None
+    return window.get("percent", 0)
+
+
 def _apply(raw, icon):
     available = raw.get("state") in ("ok", "stale")
     session = raw.get("session") or {}
     weekly = raw.get("weekly") or {}
-    pct = session.get("percent", 0) if available else 0
+    fresh = bool(raw.get("fresh"))
+    pct = _reading(session, available, fresh)
     severity = session.get("severity", "normal") if available else "normal"
 
-    if raw.get("fresh"):
+    reason = raw.get("reason")
+    if fresh:
         status = "LIVE"
     elif raw.get("state") == "stale":
-        status = f"CACHE / {(raw.get('reason') or 'OFFLINE').upper()}"
+        # Say how old the cache is: a frozen number should never read as live.
+        status = f"CACHE {_age(raw.get('fetched_at'))} / {_reason_label(reason)}"
     else:
-        status = (raw.get("state") or "ERROR").upper()
+        status = _reason_label(raw.get("state"))
 
     _state.update(
-        available=available, session_pct=pct,
-        weekly_pct=weekly.get("percent", 0) if available else 0,
-        remaining=session.get("remaining", "--") if available else "--",
+        session_pct=pct,
+        weekly_pct=_reading(weekly, available, fresh),
+        # A window that has already rolled over has no meaningful countdown.
+        remaining="--" if pct is None else session.get("remaining", "--"),
         status=status, severity=severity,
     )
-    icon.icon = _make_icon(pct, severity)
-    icon.title = f"Claude Code  {pct}%" if available else "Claude Code  —"
+    icon.icon = _make_icon(pct or 0, severity, fresh)
+    shown = "—" if pct is None else f"{pct}%"
+    icon.title = f"Claude Code  {shown}" + ("" if fresh else f"  ({status})")
 
 
 def _refresh(icon):
+    """Fetch and apply once. Returns the reading, or None if one was already in flight."""
     if not _refresh_lock.acquire(blocking=False):
-        return
+        return None
     try:
-        _apply(_fetch(), icon)
+        raw = _fetch()
+        _apply(raw, icon)
+        return raw
     finally:
         _refresh_lock.release()
 
 
 def _poll(icon):
+    delay = POLL_INTERVAL
     while True:
-        time.sleep(POLL_INTERVAL)
-        _refresh(icon)
+        time.sleep(delay)
+        try:
+            raw = _refresh(icon)
+        except Exception:
+            # Never let one bad reading kill the poll thread: that freezes the
+            # indicator for the rest of the session with no way to recover.
+            raw = {}
+        if raw is None:
+            continue
+        if raw.get("fresh"):
+            delay = POLL_INTERVAL
+        else:
+            delay = min(max(raw.get("retry_after") or delay * 2, POLL_INTERVAL),
+                        POLL_MAX_INTERVAL)
 
 
 # ---------------------------------------------------------------------------
@@ -257,14 +332,9 @@ class UsagePanel(tk.Toplevel):
 
     def _refresh_labels(self):
         s = _state
-        if s["available"]:
-            self._labels["5h"].config(text=f"5H: {_bar(s['session_pct'])}")
-            self._labels["reset"].config(text=f"Resets in: {s['remaining']}")
-            self._labels["7d"].config(text=f"7D: {_bar(s['weekly_pct'])}")
-        else:
-            self._labels["5h"].config(text="5H: [░░░░░░░░░░░░░░░░░ --%]")
-            self._labels["reset"].config(text="Resets in: --")
-            self._labels["7d"].config(text="7D: [░░░░░░░░░░░░░░░░░ --%]")
+        self._labels["5h"].config(text=f"5H: {_bar(s['session_pct'])}")
+        self._labels["reset"].config(text=f"Resets in: {s['remaining']}")
+        self._labels["7d"].config(text=f"7D: {_bar(s['weekly_pct'])}")
         self._labels["status"].config(text=f"STATUS  {s['status']}")
         if not self._refreshing:
             self._btn.config(text="[ REFRESH NOW ]", state="normal")
