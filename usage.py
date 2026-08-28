@@ -104,6 +104,15 @@ def time_remaining(resets_at, now=None):
     return f"{hours:02d}h {minutes:02d}m"
 
 
+def window_expired(resets_at, now=None):
+    """True when a window's reset time has passed, voiding any reading for it."""
+    try:
+        deadline = datetime.fromisoformat(resets_at.replace("Z", "+00:00")).timestamp()
+    except (AttributeError, TypeError, ValueError):
+        return False  # unknown reset time: no reason to distrust the reading
+    return deadline <= (time.time() if now is None else now)
+
+
 def normalize(data):
     session = limit(data, "session")
     weekly = limit(data, "weekly", "weekly_all") or limit(data, "weekly")
@@ -121,25 +130,42 @@ def normalize(data):
         }
 
     session_reset = (session or {}).get("resets_at")
+    weekly_reset = (weekly or {}).get("resets_at")
     data["session"] = {
         "percent": percent(session),
         "severity": (session or {}).get("severity") or "normal",
         "resets_at": session_reset,
         "remaining": time_remaining(session_reset),
+        "expired": window_expired(session_reset),
     }
     data["weekly"] = {
         "percent": percent(weekly),
-        "resets_at": (weekly or {}).get("resets_at"),
+        "resets_at": weekly_reset,
+        "expired": window_expired(weekly_reset),
     }
     data["display"] = {**data["session"], "kind": "session"}
     return data
 
 
+def expired(expires_at, skew=60, now=None):
+    """True when a stored OAuth expiry has passed (or is about to)."""
+    try:
+        seconds = float(expires_at)
+    except (TypeError, ValueError):
+        return False  # unknown expiry: let the API be the judge
+    if seconds > 1e11:  # milliseconds since epoch
+        seconds /= 1000
+    return seconds - skew <= (time.time() if now is None else now)
+
+
 def load_token():
     try:
         with open(CREDENTIALS) as file:
-            token = json.load(file)["claudeAiOauth"]["accessToken"]
-        return token if isinstance(token, str) and token else None
+            oauth = json.load(file)["claudeAiOauth"]
+        token = oauth["accessToken"]
+        if not isinstance(token, str) or not token:
+            return None
+        return None if expired(oauth.get("expiresAt")) else token
     except (KeyError, OSError, TypeError, json.JSONDecodeError):
         return None
 
@@ -147,6 +173,12 @@ def load_token():
 def self_check():
     assert time_remaining("1970-01-01T03:04:00+00:00", 0) == "03h 04m"
     assert time_remaining(None, 0) == "--"
+    assert expired(1000, now=2000) and not expired(9000, now=2000)
+    assert expired(2e11, now=3e8) and not expired(2e11, now=1e8)  # milliseconds
+    assert not expired(None, now=2000) and not expired("junk", now=2000)
+    assert window_expired("1970-01-01T00:00:00+00:00", now=1)
+    assert not window_expired("1970-01-01T01:00:00+00:00", now=1)
+    assert not window_expired(None, now=1)
     data = normalize({"limits": [
         {"kind": "session", "group": "session", "percent": 12, "resets_at": None},
         {"kind": "weekly_all", "group": "weekly", "percent": 98, "is_active": True},
@@ -167,7 +199,9 @@ def main():
     try:
         data = fetch_usage(token)
     except HTTPError as error:
-        stale("auth" if error.code in (401, 403) else "api")
+        if error.code in (401, 403):
+            stale("auth")
+        stale("rate" if error.code == 429 else "api")
     except (URLError, TimeoutError, OSError):
         stale("network")
     except (UnicodeDecodeError, json.JSONDecodeError):
