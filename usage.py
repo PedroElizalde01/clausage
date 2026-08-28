@@ -33,12 +33,25 @@ def load_cache():
         return None
 
 
-def stale(reason):
+def retry_after(error):
+    """Seconds the server asked us to wait, when it said so."""
+    try:
+        return max(0, int(error.headers.get("retry-after")))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def stale(reason, wait=None):
     data = load_cache()
-    if data:
-        data.update(state="stale", fresh=False, reason=reason)
-        emit(normalize(data))
-    emit({"state": reason, "fresh": False, "reason": reason})
+    if not data:
+        data = {"state": reason, "reason": reason}
+    else:
+        data = normalize(data)
+        data.update(state="stale", reason=reason)
+    data["fresh"] = False
+    if wait:
+        data["retry_after"] = wait
+    emit(data)
 
 
 def fetch_usage(token):
@@ -201,7 +214,7 @@ def main():
     except HTTPError as error:
         if error.code in (401, 403):
             stale("auth")
-        stale("rate" if error.code == 429 else "api")
+        stale("rate" if error.code == 429 else "api", retry_after(error))
     except (URLError, TimeoutError, OSError):
         stale("network")
     except (UnicodeDecodeError, json.JSONDecodeError):

@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import stat
 import tempfile
 import unittest
@@ -54,12 +55,37 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(data["reason"], "network")
         self.assertEqual(data["session"]["percent"], 41)
 
+    def test_cache_is_written(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory, "cache", "usage.json")
+            with patch.object(usage, "CACHE", str(cache)):
+                usage.save({"state": "ok"})
+            self.assertEqual(json.loads(cache.read_text())["state"], "ok")
+
+    # Windows has no fchmod and does not enforce POSIX modes; usage.save skips the
+    # chmod there, so asserting 0600 would fail for reasons unrelated to the code.
+    @unittest.skipUnless(hasattr(os, "fchmod"), "POSIX file modes unsupported here")
     def test_cache_file_is_private(self):
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory, "cache", "usage.json")
             with patch.object(usage, "CACHE", str(cache)):
                 usage.save({"state": "ok"})
             self.assertEqual(stat.S_IMODE(cache.stat().st_mode), 0o600)
+
+    def test_reading_is_marked_void_once_its_window_resets(self):
+        data = usage.normalize({"limits": [
+            {"kind": "session", "group": "session", "percent": 57,
+             "resets_at": "2020-01-01T00:00:00+00:00"},
+        ]})
+        self.assertTrue(data["session"]["expired"])
+        self.assertFalse(usage.window_expired("2999-01-01T00:00:00+00:00"))
+        self.assertFalse(usage.window_expired(None))
+
+    def test_expired_access_token_is_not_used(self):
+        self.assertTrue(usage.expired(1_000, now=2_000))
+        self.assertFalse(usage.expired(9_000, now=2_000))
+        self.assertTrue(usage.expired(2e11, now=3e8))  # milliseconds
+        self.assertFalse(usage.expired(None, now=2_000))
 
 
 if __name__ == "__main__":

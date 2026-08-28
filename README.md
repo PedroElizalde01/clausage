@@ -37,11 +37,13 @@ Only GNOME Shell 42 is declared because it is the version currently tested. GNOM
 
 ## Windows install
 
-1. Clone or download this repository.
+1. Download `clausage-windows.zip` from [Releases](https://github.com/PedroElizalde01/clausage/releases) and extract it somewhere permanent, or clone this repository.
 2. Run `install_windows.bat` (double-click or run from a terminal).
    - Installs `pystray` and `Pillow` via pip.
    - Writes a launcher to your Startup folder so Clausage starts automatically on login.
 3. The tray icon appears in the notification area (bottom-right, near the clock). Click `^` to expand hidden tray icons if needed.
+
+The Startup launcher points at wherever you extracted the files, so move the folder before installing rather than after. If you do move it, run `install_windows.bat` again to rewrite the entry.
 
 To start Clausage immediately without logging out, run:
 
@@ -72,27 +74,46 @@ To remove Clausage from startup, run `uninstall_windows.bat`, then quit the runn
 
 Run `./install.sh`, reload GNOME Shell as described above, then enable the extension with `gnome-extensions enable clausage@pedroelizalde01.github.com`.
 
+## Refreshing
+
+Clausage polls every five minutes. After a failed request it backs off, doubling the wait up to one hour, and honours a `Retry-After` header if the server sends one; a successful fetch returns it to the five-minute cadence. **Refresh Now** always fetches immediately.
+
+The back-off matters: the usage endpoint rate limits aggressive callers, and a fixed retry interval turns one `429` into a permanent one.
+
 ## Status values
 
 - `LIVE`: Usage came directly from Anthropic.
-- `CACHE / NETWORK`: The network request failed and the last successful result is shown.
-- `CACHE / AUTH`: Claude Code's access token is unavailable or expired and the last result is shown.
-- `AUTH`: No valid token or cached result exists. Open Claude Code and sign in or let it refresh the session.
-- `ERROR`: Python could not run or returned invalid output. Use **Refresh now** after correcting the problem.
+- `CACHE 10m old / OFFLINE`: The request failed and the last successful result is shown, with its age.
+- `CACHE 2h old / RATE LIMITED`: Anthropic is rate limiting the usage endpoint.
+- `CACHE 2d old / AUTH EXPIRED`: Claude Code's access token is missing or past its expiry. Open Claude Code and sign in, or let it refresh the session.
+- `CACHE 1h old / API ERROR`: The endpoint answered with something unusable.
+- The same labels without a `CACHE` prefix mean the same problem with no cached result to fall back on.
+- `ERROR`: Python could not run or returned invalid output (GNOME only). Use **Refresh Now** after correcting the problem.
+
+A percentage reads `--%` when the cached reading's window has already reset. Usage returns to zero at rollover, so the stored number is known to be wrong rather than merely old, and Clausage will not show a figure it cannot stand behind. Stale readings also draw the ring in grey so they are never mistaken for live ones.
 
 ## Security and privacy
 
-Clausage reads Claude Code's access token from `~/.claude/.credentials.json` and sends it only to `https://api.anthropic.com/api/oauth/usage`. It never modifies that credentials file, logs the token, stores a copy, or places it in command-line arguments or environment variables.
+Clausage reads Claude Code's access token from `~/.claude/.credentials.json` and sends it only to `https://api.anthropic.com/api/oauth/usage`. It never modifies that credentials file, logs the token, stores a copy, or places it in command-line arguments or environment variables. A token that is past its recorded expiry is not sent at all.
 
-The latest usage response is cached with mode `0600` at `$XDG_CACHE_HOME/clausage/usage.json` (normally `~/.cache/clausage/usage.json`) so the indicator remains useful while offline. Clausage has no telemetry.
+The latest usage response is cached so the indicator stays useful while offline. On Linux that is `$XDG_CACHE_HOME/clausage/usage.json` (normally `~/.cache/clausage/usage.json`) with mode `0600`. On Windows it is `%LOCALAPPDATA%\clausage\usage.json`; POSIX modes do not apply there, so the file inherits the protection of your user profile directory rather than being explicitly restricted. Clausage has no telemetry.
 
 The usage endpoint and Claude Code credential format are not public stable APIs and may change without notice.
 
 ## Development
 
-Run checks with `node --check extension.js`, `node test_extension.js`, `python3 -m unittest -v`, and `python3 usage.py --self-check`.
+Run checks with `node --check extension.js`, `node test_extension.js`, `python3 -m unittest -v`, and `python3 usage.py --self-check`. On Windows use `python` in place of `python3`; the cache-permission test is skipped there because Windows does not enforce POSIX modes.
 
-Build the release bundle with `zip -j clausage@pedroelizalde01.github.com.shell-extension.zip extension.js usage.py metadata.json`.
+CI runs the same checks on Ubuntu, plus the Python suite on Windows.
+
+Build the release bundles with:
+
+```
+zip -j clausage@pedroelizalde01.github.com.shell-extension.zip extension.js usage.py metadata.json
+zip -j clausage-windows.zip tray.py usage.py _setup_startup.py install_windows.bat uninstall_windows.bat requirements.txt README.md LICENSE
+```
+
+Tagging `v*` and pushing runs both builds and publishes them to a GitHub release.
 
 ## Uninstall
 

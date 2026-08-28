@@ -1,12 +1,20 @@
 @echo off
 cd /d "%~dp0"
 
+where python >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: Python was not found in PATH.
+    echo Install Python 3.9 or newer from https://www.python.org/downloads/
+    echo and tick "Add python.exe to PATH" during setup.
+    pause
+    exit /b 1
+)
+
 echo [Clausage] Installing Python dependencies...
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 if errorlevel 1 (
     echo.
     echo ERROR: pip install failed.
-    echo Make sure Python 3 is installed and "pip" is available in PATH.
     pause
     exit /b 1
 )

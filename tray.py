@@ -9,7 +9,7 @@ from urllib.error import HTTPError, URLError
 
 # Single-instance guard: exit silently if already running.
 _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
-_MUTEX = _KERNEL32.CreateMutexW(None, False, "Local\\ClausageTray_PedroElizalde01")
+_MUTEX = _KERNEL32.CreateMutexW(None, False, "Local\\ClausageTray")
 if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
     sys.exit(0)
 
@@ -106,13 +106,6 @@ def _degraded(reason, retry_after=None):
     return data
 
 
-def _retry_after(exc):
-    try:
-        return max(0, int(exc.headers.get("retry-after")))
-    except (AttributeError, TypeError, ValueError):
-        return None
-
-
 def _fetch():
     token = _u.load_token()
     if not token:
@@ -124,7 +117,7 @@ def _fetch():
         if exc.code in (401, 403):
             return _degraded("auth")
         if exc.code == 429:
-            return _degraded("rate", _retry_after(exc))
+            return _degraded("rate", _u.retry_after(exc))
         return _degraded("api")
     except (URLError, TimeoutError, OSError):
         return _degraded("network")

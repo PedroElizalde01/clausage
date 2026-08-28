@@ -20,3 +20,15 @@ jobs:
       - run: python3 -m unittest -v
       - run: python3 usage.py --self-check
       - run: zip -j clausage@pedroelizalde01.github.com.shell-extension.zip extension.js usage.py metadata.json
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install -r requirements.txt
+      - run: python -m unittest -v
+      - run: python usage.py --self-check
+      - run: python -m py_compile tray.py _setup_startup.py

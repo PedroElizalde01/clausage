@@ -16,6 +16,7 @@ jobs:
       - run: node --check extension.js
       - run: node test_extension.js
       - run: zip -j clausage@pedroelizalde01.github.com.shell-extension.zip extension.js usage.py metadata.json
-      - run: gh release create "$GITHUB_REF_NAME" clausage@pedroelizalde01.github.com.shell-extension.zip --generate-notes --verify-tag
+      - run: zip -j clausage-windows.zip tray.py usage.py _setup_startup.py install_windows.bat uninstall_windows.bat requirements.txt README.md LICENSE
+      - run: gh release create "$GITHUB_REF_NAME" clausage@pedroelizalde01.github.com.shell-extension.zip clausage-windows.zip --generate-notes --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}
