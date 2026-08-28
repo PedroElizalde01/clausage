@@ -74,7 +74,7 @@ def save(data):
         directory = os.path.dirname(CACHE)
         os.makedirs(directory, mode=0o700, exist_ok=True)
         fd, temporary = tempfile.mkstemp(dir=directory)
-        if hasattr(os, "fchmod"):
+        if os.name == "posix":
             os.fchmod(fd, 0o600)
         with os.fdopen(fd, "w") as file:
             json.dump(data, file)

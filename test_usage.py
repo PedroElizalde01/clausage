@@ -62,9 +62,10 @@ class UsageTests(unittest.TestCase):
                 usage.save({"state": "ok"})
             self.assertEqual(json.loads(cache.read_text())["state"], "ok")
 
-    # Windows has no fchmod and does not enforce POSIX modes; usage.save skips the
-    # chmod there, so asserting 0600 would fail for reasons unrelated to the code.
-    @unittest.skipUnless(hasattr(os, "fchmod"), "POSIX file modes unsupported here")
+    # Windows does not enforce POSIX modes, so usage.save skips the chmod there and
+    # asserting 0600 would fail for reasons unrelated to the code. Note that Python
+    # 3.13 does expose os.fchmod on Windows, so the attribute is not the test to make.
+    @unittest.skipUnless(os.name == "posix", "POSIX file modes unsupported here")
     def test_cache_file_is_private(self):
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory, "cache", "usage.json")
